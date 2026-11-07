@@ -114,11 +114,24 @@ Collected on the board running its stock firmware, CachyOS, kernel
 
 ## Autoport
 
-`autoport/` holds the unedited autoport output for this board
-(`devicetree.cb`, `gpio.c`, `hda_verb.c`, `romstage.c`, `bootblock.c`, `dsdt.asl`,
-`acpi/*`, `Kconfig*`, `Makefile.mk`, `board_info.txt`). It is raw material, not
-a buildable board directory: the vendor symbol is still empty
-(`BOARD_HUANANZHI_`) and `board_info.txt` carries autoport's own FIXME.
+`autoport/` holds the autoport output for this board (`devicetree.cb`,
+`gpio.c`, `hda_verb.c`, `romstage.c`, `bootblock.c`, `dsdt.asl`, `acpi/*`,
+`Kconfig*`, `Makefile.mk`, `board_info.txt`), with the port changes applied in
+place instead of a variant `overridetree.cb`:
+
+- `devicetree.cb`: the Super I/O sits under `chip superio/common` /
+  `device pnp 2e.0` so the ACPI SSDT generator keeps its LDNs, and the TPM TIS
+  device `0c31.0` is declared under the LPC bridge;
+- `Kconfig`: `SUPERIO_NUVOTON_COMMON_PRE_RAM`, `SUPERIO_NUVOTON_NCT5539D` and
+  `MEMORY_MAPPED_TPM` are selected;
+- `dsdt.asl` and `acpi/*`: autoport emits a client-board skeleton, so the
+  Grantley `hostbridge.asl` (PCI0 `_HID`/`_CRS`, including the TPM window at
+  `0xfed40000`) and the PS/2 controller include are added, together with the
+  thermal zone that samples CPUTIN through the Super I/O hardware monitor.
+
+The tree is still autoport-shaped rather than a buildable mainboard: the vendor
+symbol is empty (`BOARD_HUANANZHI_`) and `board_info.txt` carries autoport's own
+FIXME.
 
 ### `gpio.c` is complete, not truncated
 
