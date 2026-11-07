@@ -139,16 +139,27 @@ direction to record. The `reset`, `invert` and `blink` blocks are empty
 because this board leaves `GP_RST_SEL1/2/3` at zero and shows no inverted or
 blinking pads, so their constraint masks are zero.
 
-### `hda_verb.c` is empty because of a card-detection assumption
+### `hda_verb.c` needed an autoport fix
 
-`GetAzaliaCodecs()` first locates the card by probing `pin_hwC<card>D0`
+Unpatched autoport locates the card by probing `pin_hwC<card>D0`
 (`util/autoport/log_reader.go`). This machine's ALC897 is **codec index 2**, so
 the collected set has `pin_hwC0D2` and no `pin_hwC0D0`; the probe fails, the
-function returns an empty list and autoport writes `cim_verb_data[] = {}`.
-The data itself is intact: `codec#2` (vendor `0x10ec0897`, subsystem
-`0x10ec0000`) and fourteen pin defaults in `pin_hwC0D2`.
+function returns an empty list and `cim_verb_data` is written empty even though
+`codec#2` (vendor `0x10ec0897`, subsystem `0x10ec0000`) and fourteen pin
+defaults were present in the log set.
 
-Workaround for a rerun: place an empty `pin_hwC0D0` next to `pin_hwC0D2` —
-autoport only checks that the file exists, then reads `D2` for the codec it
-found. The resulting table is checked in here as `hda_verb.c` at the repository
-root, so the verbs are usable without rerunning autoport.
+`autoport` now accepts any `pin_hwC<card>D<n>` file as the card marker, and
+this directory was regenerated with that version: `autoport/hda_verb.c` holds
+one subvendor plus fourteen `AZALIA_PIN_CFG` entries for codec 2. Every other
+file came out byte-identical, which is what confirms the fix only affected the
+codec lookup.
+
+## Port notes
+
+- The Super I/O LDNs have to sit under `chip superio/common` /
+  `device pnp 2e.0` for the ACPI SSDT generator. Declared directly under the
+  LPC bridge they are skipped with
+  `Parent of device PNP: 002e.x is not a PNP device` and no ACPI devices for
+  the Super I/O are emitted.
+- A discrete TPM module fits the J9A1 header, so the port enables
+  `MEMORY_MAPPED_TPM` and declares the TIS device at `0c31.0`.
