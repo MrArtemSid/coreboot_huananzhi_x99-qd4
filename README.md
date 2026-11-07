@@ -119,3 +119,36 @@ Collected on the board running its stock firmware, CachyOS, kernel
 `acpi/*`, `Kconfig*`, `Makefile.mk`, `board_info.txt`). It is raw material, not
 a buildable board directory: the vendor symbol is still empty
 (`BOARD_HUANANZHI_`) and `board_info.txt` carries autoport's own FIXME.
+
+### `gpio.c` is complete, not truncated
+
+The old-style `pch_gpio_map` that autoport emits for Lynx Point only carries
+the bits the hardware actually defines:
+
+| block | set1 | set2 | set3 |
+|---|---|---|---|
+| `mode` | 32 | 32 | 12 |
+| `direction` | 15 | 13 | 2 |
+| `level` | 8 | 8 | 0 |
+| `reset` / `invert` / `blink` | 0 | 0 | 0 |
+
+`mode` covers every pad. `direction` is emitted only for pads in GPIO mode
+(`constraint = GPIO_USE_SEL`, `0x9908f83d` / `0x02fc501d` / `0x00000300`) and
+`level` only for outputs (`GP_IO_SEL & GP_LVL`); a native-mode pad has no
+direction to record. The `reset`, `invert` and `blink` blocks are empty
+because this board leaves `GP_RST_SEL1/2/3` at zero and shows no inverted or
+blinking pads, so their constraint masks are zero.
+
+### `hda_verb.c` is empty because of a card-detection assumption
+
+`GetAzaliaCodecs()` first locates the card by probing `pin_hwC<card>D0`
+(`util/autoport/log_reader.go`). This machine's ALC897 is **codec index 2**, so
+the collected set has `pin_hwC0D2` and no `pin_hwC0D0`; the probe fails, the
+function returns an empty list and autoport writes `cim_verb_data[] = {}`.
+The data itself is intact: `codec#2` (vendor `0x10ec0897`, subsystem
+`0x10ec0000`) and fourteen pin defaults in `pin_hwC0D2`.
+
+Workaround for a rerun: place an empty `pin_hwC0D0` next to `pin_hwC0D2` —
+autoport only checks that the file exists, then reads `D2` for the codec it
+found. The resulting table is checked in here as `hda_verb.c` at the repository
+root, so the verbs are usable without rerunning autoport.
